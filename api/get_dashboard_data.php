@@ -35,6 +35,22 @@ if ($logsResult) {
     }
 }
 
+// Get overdue equipment (checked out for more than 7 days)
+$overdueCount = 0;
+$overdueItems = [];
+$overdueSql = "SELECT id, name, status_updated_at FROM equipment WHERE status = 'CHECK_OUT' AND status_updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY status_updated_at ASC LIMIT 5";
+$overdueResult = $connection->query($overdueSql);
+if ($overdueResult) {
+    while ($row = $overdueResult->fetch_assoc()) {
+        $overdueCount++;
+        $overdueItems[] = [
+            'id' => (int)$row['id'],
+            'name' => $row['name'],
+            'status_updated_at' => $row['status_updated_at'],
+        ];
+    }
+}
+
 echo json_encode([
     'success' => true,
     'stats' => [
@@ -42,6 +58,8 @@ echo json_encode([
         'available' => (int)$stats['available'],
         'in_use' => (int)$stats['in_use'],
         'maintenance' => (int)$stats['maintenance'],
+        'overdue' => $overdueCount,
     ],
+    'overdueItems' => $overdueItems,
     'recentLogs' => $recentLogs,
 ]);

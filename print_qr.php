@@ -78,7 +78,7 @@ include __DIR__ . '/includes/head.php';
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-ptDqdE5MX6/Tn5C7Hbk52z7MiC+SW061MvHjXmT4r1h0YcMxGIIbVZKRyXelQ2x4n1jaSor1+WTeettqQeAq6Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         new QRCode(document.getElementById('print-qrcode'), {
             text: '<?php echo htmlspecialchars($qrText, ENT_QUOTES); ?>',
