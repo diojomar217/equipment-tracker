@@ -15,7 +15,7 @@ $recentLogs = [];
 $statsSql = "SELECT
     COUNT(*) AS total,
     SUM(status = 'AVAILABLE') AS available,
-    SUM(status = 'CHECK_OUT') AS in_use,
+    SUM(status = 'BORROWED') AS in_use,
     SUM(status = 'MAINTENANCE') AS maintenance
 FROM equipment";
 $statsResult = $connection->query($statsSql);
@@ -35,10 +35,10 @@ if ($logsResult) {
     }
 }
 
-// Get overdue equipment (checked out for more than 7 days)
+// Get overdue equipment (borrowed for more than 7 days)
 $overdueCount = 0;
 $overdueItems = [];
-$overdueSql = "SELECT id, name, status_updated_at FROM equipment WHERE status = 'CHECK_OUT' AND status_updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY status_updated_at ASC LIMIT 5";
+$overdueSql = "SELECT id, name, status_updated_at FROM equipment WHERE status = 'BORROWED' AND status_updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY status_updated_at ASC LIMIT 5";
 $overdueResult = $connection->query($overdueSql);
 if ($overdueResult) {
     while ($row = $overdueResult->fetch_assoc()) {

@@ -17,7 +17,7 @@ if ($output === false) {
 $columns = ['ID', 'Name', 'Category', 'Status', 'Location', 'QR Code'];
 fputcsv($output, $columns);
 
-$query = 'SELECT id, name, category, status, location, qr_code FROM equipment ORDER BY id DESC';
+$query = 'SELECT e.id, e.name, c.name AS category, e.status, l.name AS location, e.qr_code FROM equipment e LEFT JOIN categories c ON e.category = c.id LEFT JOIN locations l ON e.location = l.id ORDER BY e.id DESC';
 $result = $connection->query($query);
 if ($result !== false) {
     while ($row = $result->fetch_assoc()) {

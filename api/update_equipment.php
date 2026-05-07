@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$id = isset($_POST['id']) ? trim($_POST['id']) : '';
 $name = isset($_POST['name']) ? trim($_POST['name']) : '';
 $categoryId = isset($_POST['category']) ? (int)$_POST['category'] : 0;
 $locationId = isset($_POST['location']) ? (int)$_POST['location'] : 0;
@@ -41,6 +42,12 @@ if ($categoryResult) {
     $categoryResult->free();
 }
 
+if ($id === '' || !filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid equipment ID.']);
+    exit;
+}
+
 if ($name === '' || $categoryId <= 0 || $locationId <= 0) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Name, category, and location are required.']);
@@ -59,6 +66,11 @@ if (!in_array($locationId, $allowedLocationIds, true)) {
     exit;
 }
 
+if (!in_array($categoryId, $allowedCategoryIds, true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid category selected.']);
+    exit;
+}
 
 $columnCheck = $connection->query("SHOW COLUMNS FROM equipment LIKE 'location'");
 if ($columnCheck && $columnCheck->num_rows === 0) {
@@ -69,49 +81,45 @@ if ($returnColumnCheck && $returnColumnCheck->num_rows === 0) {
     $connection->query("ALTER TABLE equipment ADD COLUMN return_location VARCHAR(100) NULL AFTER location");
 }
 
-// Prevent duplicate equipment names
-$checkSql = 'SELECT id FROM equipment WHERE name = ? LIMIT 1';
+// Check if equipment exists
+$checkSql = 'SELECT id FROM equipment WHERE id = ? LIMIT 1';
 $checkStmt = $connection->prepare($checkSql);
 if ($checkStmt === false) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Failed to prepare duplicate check: ' . $connection->error]);
+    echo json_encode(['success' => false, 'error' => 'Failed to prepare check statement: ' . $connection->error]);
     exit;
 }
-$checkStmt->bind_param('s', $name);
+$checkStmt->bind_param('i', $id);
 $checkStmt->execute();
 $checkStmt->store_result();
-if ($checkStmt->num_rows > 0) {
+if ($checkStmt->num_rows === 0) {
     $checkStmt->close();
-    http_response_code(409);
-    echo json_encode(['success' => false, 'error' => 'An equipment item with that name already exists.']);
+    http_response_code(404);
+    echo json_encode(['success' => false, 'error' => 'Equipment not found.']);
     exit;
 }
 $checkStmt->close();
 
-$status = 'AVAILABLE';
-$assignedTo = null;
-
-$insertSql = 'INSERT INTO equipment (name, category, status, location, return_location, assigned_to) VALUES (?, ?, ?, ?, ?, ?)';
-$stmt = $connection->prepare($insertSql);
-if ($stmt === false) {
+// Prevent duplicate names (excluding current)
+$dupCheckSql = 'SELECT id FROM equipment WHERE name = ? AND id != ? LIMIT 1';
+$dupCheckStmt = $connection->prepare($dupCheckSql);
+if ($dupCheckStmt === false) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Failed to prepare insert statement: ' . $connection->error]);
+    echo json_encode(['success' => false, 'error' => 'Failed to prepare duplicate check: ' . $connection->error]);
     exit;
 }
-
-$stmt->bind_param('sisiss', $name, $categoryId, $status, $locationId, $returnLocationId, $assignedTo);
-if (!$stmt->execute()) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Insert failed: ' . $stmt->error]);
-    $stmt->close();
+$dupCheckStmt->bind_param('si', $name, $id);
+$dupCheckStmt->execute();
+$dupCheckStmt->store_result();
+if ($dupCheckStmt->num_rows > 0) {
+    $dupCheckStmt->close();
+    http_response_code(409);
+    echo json_encode(['success' => false, 'error' => 'An equipment item with that name already exists.']);
     exit;
 }
+$dupCheckStmt->close();
 
-$insertId = $stmt->insert_id;
-$stmt->close();
-
-$qrCode = 'equipment_id=' . $insertId;
-$updateSql = 'UPDATE equipment SET qr_code = ? WHERE id = ?';
+$updateSql = 'UPDATE equipment SET name = ?, category = ?, location = ?, return_location = ? WHERE id = ?';
 $stmt = $connection->prepare($updateSql);
 if ($stmt === false) {
     http_response_code(500);
@@ -119,7 +127,7 @@ if ($stmt === false) {
     exit;
 }
 
-$stmt->bind_param('si', $qrCode, $insertId);
+$stmt->bind_param('siiii', $name, $categoryId, $locationId, $returnLocationId, $id);
 if (!$stmt->execute()) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Update failed: ' . $stmt->error]);
@@ -128,10 +136,8 @@ if (!$stmt->execute()) {
 }
 
 $stmt->close();
-$connection->close();
 
 // Handle image upload if provided
-$imagePath = null;
 if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
     $file = $_FILES['image'];
     $allowedMimeTypes = [
@@ -162,6 +168,22 @@ if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         exit;
     }
 
+    // Get existing image to delete
+    $existingSql = 'SELECT image FROM equipment WHERE id = ? LIMIT 1';
+    $existingStmt = $connection->prepare($existingSql);
+    $existingStmt->bind_param('i', $id);
+    $existingStmt->execute();
+    $existingResult = $existingStmt->get_result();
+    $existingRow = $existingResult->fetch_assoc();
+    $existingStmt->close();
+
+    if ($existingRow && !empty($existingRow['image'])) {
+        $oldPath = __DIR__ . '/../' . $existingRow['image'];
+        if (file_exists($oldPath)) {
+            @unlink($oldPath);
+        }
+    }
+
     $filename = time() . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
     $destination = $uploadDir . $filename;
 
@@ -173,33 +195,25 @@ if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
 
     $imagePath = 'uploads/equipment/' . $filename;
 
-    // Update the equipment with the image path
-    require_once __DIR__ . '/../config/pdo.php';
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    try {
-        $columnCheck = $pdo->query("SHOW COLUMNS FROM equipment LIKE 'image'");
-        if ($columnCheck->fetch(PDO::FETCH_ASSOC) === false) {
-            $pdo->exec("ALTER TABLE equipment ADD COLUMN image VARCHAR(255) NULL AFTER qr_code");
-        }
-
-        $updateStmt = $pdo->prepare('UPDATE equipment SET image = :image WHERE id = :id');
-        $updateStmt->execute([
-            ':image' => $imagePath,
-            ':id' => $insertId,
-        ]);
-    } catch (PDOException $e) {
+    // Update the image
+    $imageUpdateSql = 'UPDATE equipment SET image = ? WHERE id = ?';
+    $imageStmt = $connection->prepare($imageUpdateSql);
+    if ($imageStmt === false) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'error' => 'Failed to prepare image update: ' . $connection->error]);
         exit;
     }
+    $imageStmt->bind_param('si', $imagePath, $id);
+    if (!$imageStmt->execute()) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Image update failed: ' . $imageStmt->error]);
+        $imageStmt->close();
+        exit;
+    }
+    $imageStmt->close();
 }
 
-echo json_encode([
-    'success' => true,
-    'data' => [
-        'id' => $insertId,
-        'qr_code' => $qrCode,
-    ],
-]);
+$connection->close();
+
+echo json_encode(['success' => true]);
 ?>

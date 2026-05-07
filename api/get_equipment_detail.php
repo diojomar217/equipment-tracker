@@ -13,7 +13,7 @@ if ($id === '') {
     exit;
 }
 
-$sql = 'SELECT * FROM equipment WHERE id = ? LIMIT 1';
+$sql = 'SELECT e.*, c.name AS category, l.name AS location, ro.name AS return_location, e.category AS category_id, e.location AS location_id, e.return_location AS return_location_id FROM equipment e LEFT JOIN categories c ON e.category = c.id LEFT JOIN locations l ON e.location = l.id LEFT JOIN locations ro ON e.return_location = ro.id WHERE e.id = ? LIMIT 1';
 $stmt = $connection->prepare($sql);
 if ($stmt === false) {
     http_response_code(500);

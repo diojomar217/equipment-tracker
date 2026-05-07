@@ -4,20 +4,64 @@ require_once __DIR__ . '/../config/auth.php';
 auth_require_role(['Admin', 'Staff'], true);
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/auth_helper.php';
+auth_ensure_locations_table_exists($connection);
 
 $columnCheck = $connection->query("SHOW COLUMNS FROM equipment LIKE 'location'");
 if ($columnCheck && $columnCheck->num_rows === 0) {
-    $connection->query("ALTER TABLE equipment ADD COLUMN location VARCHAR(100) NULL AFTER status");
+    $connection->query("ALTER TABLE equipment ADD COLUMN location INT NULL AFTER status");
 }
 
-$allowedLocations = ['Room 101', 'Storage', 'Office', 'Lab'];
+$allowedLocationIds = [];
+
+// Fetch allowed locations from DB
+$locationResult = $connection->query('SELECT id, name FROM locations ORDER BY name');
+if ($locationResult) {
+    while ($row = $locationResult->fetch_assoc()) {
+        $allowedLocationIds[] = (int)$row['id'];
+    }
+    $locationResult->free();
+}
+
 $location = isset($_GET['location']) ? trim($_GET['location']) : '';
+$status = isset($_GET['status']) ? trim($_GET['status']) : '';
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$assigned_to = isset($_GET['assigned_to']) ? trim($_GET['assigned_to']) : '';
 
-$sql = 'SELECT * FROM equipment';
-if ($location !== '' && in_array($location, $allowedLocations, true)) {
-    $sql .= ' WHERE location = ?';
+$conditions = [];
+$params = [];
+$types = '';
+
+if ($location !== '' && in_array((int)$location, $allowedLocationIds, true)) {
+    $conditions[] = 'location = ?';
+    $params[] = (int)$location;
+    $types .= 'i';
 }
-$sql .= ' ORDER BY id DESC';
+
+if ($status !== '') {
+    $conditions[] = 'status = ?';
+    $params[] = $status;
+    $types .= 's';
+}
+
+if ($assigned_to !== '') {
+    $conditions[] = 'assigned_to = ?';
+    $params[] = $assigned_to;
+    $types .= 's';
+}
+
+$sql = 'SELECT e.*, c.name AS category, l.name AS location, ro.name AS return_location, e.category AS category_id, e.location AS location_id, e.return_location AS return_location_id FROM equipment e LEFT JOIN categories c ON e.category = c.id LEFT JOIN locations l ON e.location = l.id LEFT JOIN locations ro ON e.return_location = ro.id';
+if (!empty($conditions)) {
+    $sql .= ' WHERE ' . implode(' AND ', $conditions);
+}
+if ($search !== '') {
+    $searchCondition = $sql . (empty($conditions) ? ' WHERE' : ' AND') . ' (e.name LIKE ? OR c.name LIKE ?)';
+    $sql = $searchCondition;
+    $params[] = '%' . $search . '%';
+    $params[] = '%' . $search . '%';
+    $types .= 'ss';
+}
+$sql .= ' ORDER BY e.id DESC';
 
 $stmt = $connection->prepare($sql);
 if ($stmt === false) {
@@ -29,8 +73,8 @@ if ($stmt === false) {
     exit;
 }
 
-if ($location !== '' && in_array($location, $allowedLocations, true)) {
-    $stmt->bind_param('s', $location);
+if (!empty($params)) {
+    $stmt->bind_param($types, ...$params);
 }
 $stmt->execute();
 $result = $stmt->get_result();

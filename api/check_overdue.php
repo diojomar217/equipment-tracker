@@ -10,7 +10,7 @@ require_once __DIR__ . '/notifications_helper.php';
 ensure_notifications_table($connection);
 ensure_equipment_status_updated_at_column($connection);
 
-$query = "SELECT id, name, status_updated_at FROM equipment WHERE status = 'CHECK_OUT' AND status_updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY)";
+$query = "SELECT id, name, status_updated_at FROM equipment WHERE status = 'BORROWED' AND status_updated_at < DATE_SUB(NOW(), INTERVAL 7 DAY)";
 $result = $connection->query($query);
 
 if ($result === false) {
@@ -22,7 +22,7 @@ if ($result === false) {
 $createdCount = 0;
 while ($row = $result->fetch_assoc()) {
     if (!overdue_notification_exists($connection, $row['id'], $row['status_updated_at'])) {
-        $message = 'Equipment "' . $row['name'] . '" has been in use for more than 7 days and is overdue.';
+        $message = 'Equipment "' . $row['name'] . '" has been borrowed for more than 7 days and is overdue.';
         if (insert_notification($connection, $row['id'], $message, 'overdue', 'UNREAD')) {
             $createdCount++;
         }

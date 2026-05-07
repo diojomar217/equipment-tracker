@@ -87,7 +87,7 @@ include __DIR__ . '/includes/head.php';
     <div class="container-fluid">
         <div class="row">
             <?php $activePage = 'logs'; include __DIR__ . '/includes/sidebar.php'; ?>
-            <main class="col-md-9 col-lg-10 content-area px-4">
+            <main class="col-12 col-md-9 col-lg-10 content-area px-4">
                 <!-- Header Section -->
                 <div class="d-flex justify-content-between align-items-center mb-5">
                     <div>
@@ -213,14 +213,14 @@ include __DIR__ . '/includes/head.php';
             var iconClass = 'bi-plus-circle';
             var displayText = activity;
 
-            if (activityLower.includes('check-in') || activityLower.includes('check_in')) {
+            if (activityLower.includes('return') || activityLower.includes('returned') || activityLower.includes('check-in') || activityLower.includes('check_in')) {
                 badgeClass = 'activity-checkin';
                 iconClass = 'bi-check-circle';
-                displayText = 'Checked In';
-            } else if (activityLower.includes('check-out') || activityLower.includes('check_out')) {
+                displayText = 'Returned';
+            } else if (activityLower.includes('borrow') || activityLower.includes('borrowed') || activityLower.includes('check-out') || activityLower.includes('check_out')) {
                 badgeClass = 'activity-checkout';
                 iconClass = 'bi-arrow-right-circle';
-                displayText = 'Checked Out';
+                displayText = 'Borrowed';
             } else if (activityLower.includes('maintenance')) {
                 badgeClass = 'activity-maintenance';
                 iconClass = 'bi-wrench';

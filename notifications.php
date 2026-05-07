@@ -117,7 +117,7 @@ include __DIR__ . '/includes/head.php';
     <div class="container-fluid">
         <div class="row">
             <?php $activePage = 'notifications'; include __DIR__ . '/includes/sidebar.php'; ?>
-            <main class="col-md-9 col-lg-10 content-area px-4">
+            <main class="col-12 col-md-9 col-lg-10 content-area px-4">
                 <!-- Header Section -->
                 <div class="d-flex justify-content-between align-items-center mb-5">
                     <div>
@@ -138,7 +138,7 @@ include __DIR__ . '/includes/head.php';
 
                 <!-- Notification Stats Cards -->
                 <div class="row mb-4">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <div class="rounded-circle bg-danger bg-gradient p-3 d-inline-block mb-3">
@@ -149,7 +149,7 @@ include __DIR__ . '/includes/head.php';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <div class="rounded-circle bg-warning bg-gradient p-3 d-inline-block mb-3">
@@ -157,17 +157,6 @@ include __DIR__ . '/includes/head.php';
                                 </div>
                                 <h3 class="fw-bold text-warning mb-1" id="overdue-count">0</h3>
                                 <p class="text-muted mb-0 small">Overdue Items</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <div class="rounded-circle bg-info bg-gradient p-3 d-inline-block mb-3">
-                                    <i class="bi bi-wrench text-white fs-4"></i>
-                                </div>
-                                <h3 class="fw-bold text-info mb-1" id="maintenance-count">0</h3>
-                                <p class="text-muted mb-0 small">Maintenance Due</p>
                             </div>
                         </div>
                     </div>

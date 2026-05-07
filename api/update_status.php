@@ -4,7 +4,9 @@ require_once __DIR__ . '/../config/auth.php';
 auth_require_role(['Admin', 'Staff'], true);
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/auth_helper.php';
 require_once __DIR__ . '/notifications_helper.php';
+auth_ensure_locations_table_exists($connection);
 ensure_equipment_status_updated_at_column($connection);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -14,14 +16,31 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $id = isset($_POST['id']) ? trim($_POST['id']) : '';
-$status = isset($_POST['status']) ? trim($_POST['status']) : '';
-$user = isset($_POST['user']) ? trim($_POST['user']) : '';
+$action = isset($_POST['status']) ? trim($_POST['status']) : '';
+$returnLocation = isset($_POST['return_location']) ? trim($_POST['return_location']) : '';
+$currentUser = auth_user()['username'] ?? '';
 
-$allowedStatuses = ['CHECK_IN', 'CHECK_OUT', 'MAINTENANCE'];
+$allowedActions = ['BORROW', 'RETURN', 'MAINTENANCE', 'COMPLETE_MAINTENANCE'];
+$allowedLocationIds = [];
 
-if ($id === '' || $status === '' || $user === '') {
+// Fetch allowed locations from DB
+$locationResult = $connection->query('SELECT id FROM locations ORDER BY name');
+if ($locationResult) {
+    while ($row = $locationResult->fetch_assoc()) {
+        $allowedLocationIds[] = (int)$row['id'];
+    }
+    $locationResult->free();
+}
+
+if ($id === '' || $action === '' || $currentUser === '') {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'id, status, and user are required.']);
+    echo json_encode(['success' => false, 'error' => 'id and action are required.']);
+    exit;
+}
+
+if ($returnLocation !== '' && !in_array((int)$returnLocation, $allowedLocationIds, true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid return location selected.']);
     exit;
 }
 
@@ -31,21 +50,109 @@ if (!filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
     exit;
 }
 
-if (!in_array($status, $allowedStatuses, true)) {
+if (!in_array($action, $allowedActions, true)) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid status value.']);
+    echo json_encode(['success' => false, 'error' => 'Invalid action value.']);
     exit;
 }
 
-$updateSql = 'UPDATE equipment SET status = ?, status_updated_at = NOW() WHERE id = ?';
-$stmt = $connection->prepare($updateSql);
+if (($action === 'MAINTENANCE' || $action === 'COMPLETE_MAINTENANCE') && auth_user()['role'] !== 'Admin') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Only admins can perform maintenance actions.']);
+    exit;
+}
+
+$selectSql = 'SELECT status, assigned_to, location, return_location FROM equipment WHERE id = ? LIMIT 1';
+$stmt = $connection->prepare($selectSql);
 if ($stmt === false) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Failed to prepare update statement: ' . $connection->error]);
+    echo json_encode(['success' => false, 'error' => 'Failed to prepare select statement: ' . $connection->error]);
+    exit;
+}
+$stmt->bind_param('i', $id);
+$stmt->execute();
+$result = $stmt->get_result();
+$currentData = $result ? $result->fetch_assoc() : null;
+$stmt->close();
+
+if (!$currentData) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'error' => 'Equipment not found.']);
     exit;
 }
 
-$stmt->bind_param('si', $status, $id);
+$currentStatus = $currentData['status'];
+$currentAssignedTo = $currentData['assigned_to'];
+$assignedTo = null;
+$newStatus = '';
+$newLocation = $currentData['location'];
+$newReturnLocation = $currentData['return_location'];
+
+if ($action === 'BORROW') {
+    if ($currentStatus !== 'AVAILABLE') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Equipment must be available before it can be borrowed.']);
+        exit;
+    }
+    if ($returnLocation === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Return location is required when borrowing equipment.']);
+        exit;
+    }
+    $newStatus = 'BORROWED';
+    $assignedTo = $currentUser;
+    $newReturnLocation = $returnLocation;
+    $newLocation = $currentData['location'];
+} elseif ($action === 'RETURN') {
+    if ($currentStatus !== 'BORROWED' || $currentAssignedTo !== $currentUser) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Only the user who borrowed the equipment can return it.']);
+        exit;
+    }
+    $newStatus = 'AVAILABLE';
+    $assignedTo = null;
+    $newLocation = $currentData['return_location'] ?: $currentData['location'];
+    $newReturnLocation = null;
+} elseif ($action === 'MAINTENANCE') {
+    if ($currentStatus === 'MAINTENANCE') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Equipment is already in maintenance.']);
+        exit;
+    }
+    $newStatus = 'MAINTENANCE';
+    $assignedTo = null;
+    $newReturnLocation = null;
+} elseif ($action === 'COMPLETE_MAINTENANCE') {
+    if ($currentStatus !== 'MAINTENANCE') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Equipment must be in maintenance to complete maintenance.']);
+        exit;
+    }
+    $newStatus = 'AVAILABLE';
+    $assignedTo = null;
+    $newReturnLocation = null;
+}
+
+if ($assignedTo === null) {
+    $updateSql = 'UPDATE equipment SET status = ?, assigned_to = NULL, location = ?, return_location = ?, status_updated_at = NOW() WHERE id = ?';
+    $stmt = $connection->prepare($updateSql);
+    if ($stmt === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to prepare update statement: ' . $connection->error]);
+        exit;
+    }
+    $stmt->bind_param('siii', $newStatus, $newLocation, $newReturnLocation, $id);
+} else {
+    $updateSql = 'UPDATE equipment SET status = ?, assigned_to = ?, location = ?, return_location = ?, status_updated_at = NOW() WHERE id = ?';
+    $stmt = $connection->prepare($updateSql);
+    if ($stmt === false) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to prepare update statement: ' . $connection->error]);
+        exit;
+    }
+    $stmt->bind_param('ssisii', $newStatus, $assignedTo, $newLocation, $newReturnLocation, $id);
+}
+
 if (!$stmt->execute()) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Status update failed: ' . $stmt->error]);
@@ -69,7 +176,7 @@ if ($stmt === false) {
     exit;
 }
 
-$stmt->bind_param('iss', $id, $status, $user);
+$stmt->bind_param('iss', $id, $action, $currentUser);
 if (!$stmt->execute()) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Log insert failed: ' . $stmt->error]);

@@ -93,14 +93,14 @@ include __DIR__ . '/includes/head.php';
     <div class="container-fluid">
         <div class="row">
             <?php $activePage = 'scan'; include __DIR__ . '/includes/sidebar.php'; ?>
-            <main class="col-md-9 col-lg-10 content-area px-4">
+            <main class="col-12 col-md-9 col-lg-10 content-area px-4">
                 <!-- Header Section -->
                 <div class="d-flex justify-content-between align-items-center mb-5">
                     <div>
                         <h1 class="h2 fw-bold text-dark mb-2">
                             <i class="bi bi-qr-code-scan text-primary me-3"></i>QR Scanner
                         </h1>
-                        <p class="text-muted mb-0 fs-6">Scan equipment QR codes and manage check-in/check-out actions.</p>
+                        <p class="text-muted mb-0 fs-6">Scan equipment QR codes and manage borrow/return actions.</p>
                     </div>
                 </div>
 
@@ -122,6 +122,13 @@ include __DIR__ . '/includes/head.php';
                                 <div id="qr-reader" class="flex-fill mb-3"></div>
                                 <div id="scanner-message" class="mt-3 text-center text-muted small">
                                     <i class="bi bi-camera me-1"></i>Initializing camera...
+                                </div>
+                                <div class="mt-3">
+                                    <label for="manual-id-input" class="form-label small text-muted">Or enter Equipment ID manually:</label>
+                                    <div class="input-group input-group-lg">
+                                        <input type="number" class="form-control" id="manual-id-input" placeholder="e.g., 123" min="1">
+                                        <button class="btn btn-outline-secondary" type="button" id="manual-load-btn">Load</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -163,25 +170,37 @@ include __DIR__ . '/includes/head.php';
                                     <dd class="col-sm-8" id="info-location"></dd>
                                 </dl>
 
+                                <div id="action-message" class="mb-3 text-muted"></div>
+                                <div id="current-user-group" class="mb-3 d-none">
+                                    <label class="form-label fw-semibold">Current User</label>
+                                    <div class="form-control form-control-lg bg-light text-dark" id="action-user-display"></div>
+                                </div>
+                                <div id="return-location-group" class="mb-3 d-none">
+                                    <label class="form-label fw-semibold">Destination Location</label>
+                                    <select class="form-select" id="return-location-select">
+                                        <option value="">Select a location for returning this item later...</option>
+                                    </select>
+                                </div>
                                 <div id="action-buttons" class="d-none">
-                                    <div class="mb-3">
-                                        <label for="action-user" class="form-label fw-semibold">Your Name</label>
-                                        <input type="text" class="form-control form-control-lg" id="action-user" placeholder="Enter your name">
-                                    </div>
                                     <div class="row g-2">
                                         <div class="col-12">
                                             <button id="btn-checkin" class="btn btn-success btn-lg w-100">
-                                                <i class="bi bi-check-circle me-2"></i>Check-in Equipment
+                                                <i class="bi bi-check-circle me-2"></i>Return Equipment
                                             </button>
                                         </div>
                                         <div class="col-12">
                                             <button id="btn-checkout" class="btn btn-primary btn-lg w-100">
-                                                <i class="bi bi-arrow-right-circle me-2"></i>Check-out Equipment
+                                                <i class="bi bi-arrow-right-circle me-2"></i>Borrow Equipment
                                             </button>
                                         </div>
                                         <div class="col-12">
                                             <button id="btn-maintenance" class="btn btn-warning btn-lg w-100">
                                                 <i class="bi bi-wrench me-2"></i>Send to Maintenance
+                                            </button>
+                                        </div>
+                                        <div class="col-12">
+                                            <button id="btn-complete-maintenance" class="btn btn-success btn-lg w-100">
+                                                <i class="bi bi-check-circle me-2"></i>Complete Maintenance
                                             </button>
                                         </div>
                                     </div>
@@ -196,11 +215,31 @@ include __DIR__ . '/includes/head.php';
         </div>
     </div>
 
+    <div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="actionConfirmModalLabel">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="actionConfirmModalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="actionConfirmModalConfirmBtn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script>
         var currentEquipmentId = null;
+        var currentUser = '<?php echo htmlspecialchars($user['name'] ?: $user['username'], ENT_QUOTES); ?>';
+        var currentRole = '<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>';
 
         function showAlert(message, type) {
             $('#action-alert').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
@@ -213,9 +252,13 @@ include __DIR__ . '/includes/head.php';
             currentEquipmentId = null;
             $('#equipment-info-list').addClass('d-none');
             $('#action-buttons').addClass('d-none');
+            $('#return-location-group').addClass('d-none');
+            $('#current-user-group').addClass('d-none');
+            $('#return-location-select').val('');
             $('#equipment-info-empty').removeClass('d-none');
             $('#equipment-status-badge').text('');
             $('#action-alert').empty();
+            $('#action-user-display').text('');
         }
 
         function renderEquipmentInfo(data) {
@@ -225,11 +268,19 @@ include __DIR__ . '/includes/head.php';
             $('#info-category').text(data.category || '-');
             $('#info-status').text(data.status || '-');
             $('#info-location').text(data.location || '-');
-            $('#equipment-status-badge').html('<span class="badge badge-secondary">' + (data.status || 'Unknown') + '</span>');
+            var badgeClass = 'bg-secondary';
+            if (data.status === 'AVAILABLE') badgeClass = 'bg-success';
+            else if (data.status === 'BORROWED') badgeClass = 'bg-primary';
+            else if (data.status === 'MAINTENANCE') badgeClass = 'bg-warning text-dark';
+            $('#equipment-status-badge').html('<span class="badge ' + badgeClass + '">' + (data.status || 'Unknown') + '</span>');
             $('#equipment-info-list').removeClass('d-none');
             $('#action-buttons').removeClass('d-none');
             $('#equipment-info-empty').addClass('d-none');
             $('#action-alert').empty();
+            $('#action-user-display').text(currentUser);
+            // $('#current-user-group').removeClass('d-none');
+            $('#return-location-select').val(data.location_id || '');
+            updateActionButtons(data);
         }
 
         function fetchEquipmentById(id) {
@@ -255,27 +306,71 @@ include __DIR__ . '/includes/head.php';
             });
         }
 
+        var confirmActionCallback = null;
+        var confirmActionModal = null;
+
+        function showActionConfirm(message, callback) {
+            $('#actionConfirmModalMessage').text(message);
+            confirmActionCallback = callback;
+            confirmActionModal.show();
+        }
+
         function updateEquipmentStatus(status) {
-            var user = $('#action-user').val().trim();
             if (!currentEquipmentId) {
                 showAlert('No equipment selected.', 'danger');
                 return;
             }
-            if (!user) {
-                showAlert('Please enter your name before continuing.', 'warning');
+
+            var requestData = {
+                id: currentEquipmentId,
+                status: status
+            };
+
+            if (status === 'BORROW') {
+                var location = $('#return-location-select').val();
+                if (!location) {
+                    showAlert('Please select a return location destination before borrowing.', 'warning');
+                    return;
+                }
+                requestData.return_location = location;
+            }
+
+            var confirmMessage = '';
+            if (status === 'BORROW') {
+                confirmMessage = 'Borrow this equipment and assign a return location?';
+            } else if (status === 'RETURN') {
+                confirmMessage = 'Return this equipment and make it available again?';
+            } else if (status === 'MAINTENANCE') {
+                confirmMessage = 'Send this equipment to maintenance? It will no longer be available for borrowing.';
+            } else if (status === 'COMPLETE_MAINTENANCE') {
+                confirmMessage = 'Mark maintenance complete and make this equipment available?';
+            }
+
+            function proceedWithStatusUpdate() {
+                $.ajax({
+                    url: 'api/update_status.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: requestData
+                }).done(function(response) {
+                    if (response && response.success) {
+                        showAlert(response.message || 'Status updated.', 'success');
+                        fetchEquipmentById(currentEquipmentId);
+                    } else {
+                        showAlert(response.error || 'Unable to update status.', 'danger');
+                    }
+                }).fail(function() {
+                    showAlert('Unable to update status.', 'danger');
+                });
+            }
+
+            if (confirmMessage) {
+                showActionConfirm(confirmMessage, proceedWithStatusUpdate);
                 return;
             }
 
-            $.ajax({
-                url: 'api/update_status.php',
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    id: currentEquipmentId,
-                    status: status,
-                    user: user
-                }
-            }).done(function(response) {
+            proceedWithStatusUpdate();
+        }
                 if (response && response.success) {
                     showAlert(response.message || 'Status updated.', 'success');
                     fetchEquipmentById(currentEquipmentId);
@@ -285,6 +380,73 @@ include __DIR__ . '/includes/head.php';
             }).fail(function() {
                 showAlert('Unable to update status.', 'danger');
             });
+        }
+
+        function updateActionButtons(data) {
+            var status = data.status;
+            var assignedTo = data.assigned_to || '';
+            var isOwner = assignedTo === currentUser;
+            var isAdmin = currentRole === 'Admin';
+
+            $('#btn-checkin').hide();
+            $('#btn-checkout').hide();
+            $('#btn-maintenance').hide();
+            $('#btn-complete-maintenance').hide();
+            $('#return-location-group').addClass('d-none');
+            $('#action-message').text('');
+            $('#action-buttons').removeClass('d-none');
+
+            if (status === 'AVAILABLE') {
+                $('#btn-checkout').show();
+                $('#return-location-group').removeClass('d-none');
+                if (isAdmin) {
+                    $('#btn-maintenance').show();
+                }
+                $('#action-message').text('This equipment is available. Select a return location, then borrow it, or send it to maintenance.');
+            } else if (status === 'BORROWED') {
+                $('#return-location-group').addClass('d-none');
+                if (isOwner) {
+                    $('#btn-checkin').show();
+                    if (isAdmin) {
+                        $('#btn-maintenance').show();
+                    }
+                    if (data.return_location) {
+                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.return_location + '.');
+                    } else if (data.location) {
+                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.location + '.');
+                    } else {
+                        $('#action-message').text('You currently have this equipment borrowed.');
+                    }
+                } else {
+                    if (isAdmin) {
+                        $('#btn-maintenance').show();
+                        if (data.location) {
+                            $('#action-message').text('Borrowed by ' + assignedTo + '. Admin can send this equipment to maintenance.');
+                        } else {
+                            $('#action-message').text('Borrowed by ' + assignedTo + '. Admin can send this equipment to maintenance.');
+                        }
+                    } else {
+                        if (data.location) {
+                            $('#action-message').text('Borrowed by ' + assignedTo + '. Expected return location: ' + data.location + '.');
+                        } else {
+                            $('#action-message').text('Borrowed by ' + assignedTo + '. You cannot return it.');
+                        }
+                        $('#action-buttons').addClass('d-none');
+                    }
+                }
+            } else if (status === 'MAINTENANCE') {
+                $('#action-buttons').removeClass('d-none');
+                if (isAdmin) {
+                    $('#btn-complete-maintenance').show();
+                    $('#action-message').text('This equipment is currently in maintenance. Admin can complete maintenance to make it available again.');
+                } else {
+                    $('#action-buttons').addClass('d-none');
+                    $('#action-message').text('This equipment is currently in maintenance and not available for borrowing.');
+                }
+            } else {
+                $('#action-buttons').addClass('d-none');
+                $('#action-message').text('This equipment is not available for actions right now.');
+            }
         }
 
         function onScanSuccess(decodedText) {
@@ -302,6 +464,24 @@ include __DIR__ . '/includes/head.php';
 
         $(document).ready(function() {
             resetEquipmentInfo();
+
+            // Load locations
+            $.ajax({
+                url: 'api/get_locations.php',
+                type: 'GET',
+                dataType: 'json'
+            }).done(function(response) {
+                if (response.success) {
+                    var select = $('#return-location-select');
+                    select.empty();
+                    select.append('<option value="">Select a return location...</option>');
+                    response.locations.forEach(function(loc) {
+                        select.append('<option value="' + loc.id + '">' + loc.name + '</option>');
+                    });
+                }
+            }).fail(function() {
+                console.error('Failed to load locations');
+            });
 
             var html5QrcodeScanner = new Html5Qrcode('qr-reader');
             Html5Qrcode.getCameras().then(function(cameras) {
@@ -327,13 +507,40 @@ include __DIR__ . '/includes/head.php';
             });
 
             $('#btn-checkin').click(function() {
-                updateEquipmentStatus('CHECK_IN');
+                updateEquipmentStatus('RETURN');
             });
             $('#btn-checkout').click(function() {
-                updateEquipmentStatus('CHECK_OUT');
+                updateEquipmentStatus('BORROW');
             });
             $('#btn-maintenance').click(function() {
                 updateEquipmentStatus('MAINTENANCE');
+            });
+            $('#btn-complete-maintenance').click(function() {
+                updateEquipmentStatus('COMPLETE_MAINTENANCE');
+            });
+
+            $('#manual-load-btn').click(function() {
+                var id = $('#manual-id-input').val().trim();
+                if (id && /^\d+$/.test(id)) {
+                    fetchEquipmentById(id);
+                } else {
+                    showAlert('Please enter a valid Equipment ID.', 'warning');
+                }
+            });
+
+            $('#manual-id-input').keypress(function(e) {
+                if (e.which === 13) { // Enter key
+                    $('#manual-load-btn').click();
+                }
+            });
+
+            confirmActionModal = new bootstrap.Modal(document.getElementById('actionConfirmModal'));
+
+            $('#actionConfirmModalConfirmBtn').click(function() {
+                if (confirmActionCallback) {
+                    confirmActionCallback();
+                }
+                confirmActionModal.hide();
             });
         });
     </script>

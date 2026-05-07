@@ -183,14 +183,14 @@ include __DIR__ . '/includes/head.php';
     <div class="container-fluid">
         <div class="row">
             <?php $activePage = 'dashboard'; include __DIR__ . '/includes/sidebar.php'; ?>
-            <main class="col-md-9 col-lg-10 content-area px-4">
+            <main class="col-12 col-md-9 col-lg-10 content-area px-4">
                 <!-- Header Section -->
                 <div class="d-flex justify-content-between align-items-center mb-5">
                     <div>
                         <h1 class="h2 fw-bold text-dark mb-2">
                             <i class="bi bi-speedometer2 text-primary me-3"></i>Dashboard
                         </h1>
-                        <p class="text-muted mb-0 fs-6">Welcome back, <strong><?php echo htmlspecialchars($user['username']); ?></strong>! Here's your equipment overview.</p>
+                        <p class="text-muted mb-0 fs-6">Welcome back, <strong><?php echo htmlspecialchars($user['name'] ?: $user['username']); ?></strong>! Here's your equipment overview.</p>
                     </div>
                     <div class="d-flex align-items-center gap-3">
                         <div class="dropdown">
@@ -252,7 +252,7 @@ include __DIR__ . '/includes/head.php';
                             <div>
                                 <p class="text-muted fw-semibold mb-1 fs-7 text-uppercase">In Use</p>
                                 <h2 class="mb-0 fw-bold text-warning" id="inuse-count">0</h2>
-                                <small class="text-muted">Currently checked out</small>
+                                <small class="text-muted">Currently borrowed</small>
                             </div>
                             <div class="stat-icon bg-warning bg-gradient text-white">
                                 <i class="bi bi-arrow-right-circle"></i>

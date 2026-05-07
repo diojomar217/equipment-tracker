@@ -42,8 +42,8 @@ include __DIR__ . '/includes/head.php';
         <div class="row shadow-lg rounded-4 overflow-hidden login-wrapper">
 
             <!-- LEFT PANEL (Branding) -->
-            <div class="col-md-6 d-none d-md-flex flex-column justify-content-center p-5 text-white login-left">
-                <h2 class="fw-bold mb-3">Equipment Tracker</h2>
+            <div class="col-lg-5 d-none d-lg-flex flex-column justify-content-center p-5 text-dark login-left">
+                <h2 class="fw-bold mb-3">EquipTrack</h2>
                 <p class="mb-4 opacity-75">
                     Manage, track, and monitor all equipment in real-time using QR-based scanning system.
                 </p>
@@ -61,7 +61,7 @@ include __DIR__ . '/includes/head.php';
             </div>
 
             <!-- RIGHT PANEL (FORM) -->
-            <div class="col-md-6 p-5 login-card bg-transparent">
+            <div class="col-12 col-lg-7 p-5 login-card bg-transparent">
                 <div class="card border-0">
                     <div class="card-body">
 

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/config/auth.php';
 auth_require_role('Admin');
-
+session_write_close();
 $id = isset($_GET['id']) ? trim($_GET['id']) : '';
 if (!filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])) {
     http_response_code(400);
