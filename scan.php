@@ -123,6 +123,7 @@ include __DIR__ . '/includes/head.php';
                                 <div id="scanner-message" class="mt-3 text-center text-muted small">
                                     <i class="bi bi-camera me-1"></i>Initializing camera...
                                 </div>
+                                <button id="switch-camera-btn" class="btn btn-outline-secondary w-100 d-none mt-2" type="button">Switch Camera</button>
                                 <div class="mt-3">
                                     <label for="manual-id-input" class="form-label small text-muted">Or enter Equipment ID manually:</label>
                                     <div class="input-group input-group-lg">
@@ -241,6 +242,9 @@ include __DIR__ . '/includes/head.php';
         var currentUserId = <?php echo (int)($user['id'] ?? 0); ?>;
         var currentUser = '<?php echo htmlspecialchars($user['name'] ?: $user['username'], ENT_QUOTES); ?>';
         var currentRole = '<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>';
+        var html5QrcodeScanner = null;
+        var availableCameras = [];
+        var currentCameraIndex = 0;
 
         function showAlert(message, type) {
             $('#action-alert').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
@@ -476,21 +480,58 @@ include __DIR__ . '/includes/head.php';
                 console.error('Failed to load locations');
             });
 
-            var html5QrcodeScanner = new Html5Qrcode('qr-reader');
+            html5QrcodeScanner = new Html5Qrcode('qr-reader');
+
+            function getBackCameraIndex(cameras) {
+                var backIndex = cameras.findIndex(function(camera) {
+                    var label = (camera.label || '').toLowerCase();
+                    return /back|rear|environment|world/.test(label);
+                });
+                return backIndex >= 0 ? backIndex : 0;
+            }
+
+            function startCamera(index) {
+                if (!availableCameras.length) {
+                    return;
+                }
+                currentCameraIndex = index;
+                var cameraId = availableCameras[currentCameraIndex].id;
+                $('#scanner-message').text('Starting camera...');
+                html5QrcodeScanner.start(
+                    cameraId,
+                    {
+                        fps: 10,
+                        qrbox: 250
+                    },
+                    onScanSuccess,
+                    onScanError
+                ).then(function() {
+                    $('#scanner-message').text('Camera started. Scan the QR code.');
+                }).catch(function(err) {
+                    $('#scanner-message').text('Unable to start camera: ' + err);
+                });
+            }
+
+            function switchCamera() {
+                if (availableCameras.length < 2 || !html5QrcodeScanner) {
+                    return;
+                }
+                html5QrcodeScanner.stop().then(function() {
+                    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                    startCamera(currentCameraIndex);
+                }).catch(function(err) {
+                    $('#scanner-message').text('Unable to switch camera: ' + err);
+                });
+            }
+
             Html5Qrcode.getCameras().then(function(cameras) {
                 if (cameras && cameras.length) {
-                    var cameraId = cameras[0].id;
-                    html5QrcodeScanner.start(
-                        cameraId,
-                        {
-                            fps: 10,
-                            qrbox: 250
-                        },
-                        onScanSuccess,
-                        onScanError
-                    ).catch(function(err) {
-                        $('#scanner-message').text('Unable to start camera: ' + err);
-                    });
+                    availableCameras = cameras;
+                    currentCameraIndex = getBackCameraIndex(cameras);
+                    startCamera(currentCameraIndex);
+                    if (cameras.length > 1) {
+                        $('#switch-camera-btn').removeClass('d-none');
+                    }
                 } else {
                     $('#scanner-message').text('No camera found.');
                 }
@@ -498,6 +539,8 @@ include __DIR__ . '/includes/head.php';
                 $('#scanner-message').text('Camera access denied or unavailable.');
                 console.error(err);
             });
+
+            $('#switch-camera-btn').click(switchCamera);
 
             $('#btn-checkin').click(function() {
                 updateEquipmentStatus('RETURN');
