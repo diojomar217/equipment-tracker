@@ -276,9 +276,11 @@ include __DIR__ . '/includes/head.php';
                         <a href="equipment.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-2"></i>Back to Equipment
                         </a>
+                        <?php if ($user['role'] === 'Admin'): ?>
                         <button class="btn btn-primary" onclick="printDetails()">
                             <i class="bi bi-printer me-2"></i>Print Details
                         </button>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -365,6 +367,7 @@ include __DIR__ . '/includes/head.php';
 
                     <!-- QR Code & Actions -->
                     <div class="col-lg-4 mb-4">
+                        <?php if ($user['role'] === 'Admin'): ?>
                         <div class="card mb-4">
                             <div class="card-header bg-white border-0 pt-4 pb-3">
                                 <div class="d-flex align-items-center">
@@ -384,8 +387,11 @@ include __DIR__ . '/includes/head.php';
                                 </button>
                             </div>
                         </div>
+                        <?php endif; ?>
+                    </div>
 
-                        <!-- Quick Actions -->
+                    <!-- Quick Actions -->
+                    <div class="col-lg-<?php echo $user['role'] === 'Admin' ? '8' : '12'; ?> mb-4">
                         <div class="card">
                             <div class="card-header bg-white border-0 pt-4 pb-3">
                                 <div class="d-flex align-items-center">
@@ -606,6 +612,7 @@ include __DIR__ . '/includes/head.php';
         }
 
         $(document).ready(function() {
+            <?php if ($user['role'] === 'Admin'): ?>
             // Generate QR Code
             new QRCode(document.getElementById('qr-code-container'), {
                 text: '<?php echo htmlspecialchars($qrText, ENT_QUOTES); ?>',
@@ -613,6 +620,7 @@ include __DIR__ . '/includes/head.php';
                 height: 220,
                 correctLevel: QRCode.CorrectLevel.H
             });
+            <?php endif; ?>
 
             equipmentDetailConfirmModal = new bootstrap.Modal(document.getElementById('equipmentDetailConfirmModal'));
             $('#equipmentDetailConfirmBtn').click(function() {

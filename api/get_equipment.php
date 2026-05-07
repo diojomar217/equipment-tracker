@@ -12,6 +12,15 @@ if ($columnCheck && $columnCheck->num_rows === 0) {
     $connection->query("ALTER TABLE equipment ADD COLUMN location INT NULL AFTER status");
 }
 
+$assignedToCheck = $connection->query("SHOW COLUMNS FROM equipment LIKE 'assigned_to'");
+if ($assignedToCheck) {
+    $assignedToRow = $assignedToCheck->fetch_assoc();
+    if ($assignedToRow && strpos($assignedToRow['Type'], 'int') === false) {
+        $connection->query("ALTER TABLE equipment MODIFY COLUMN assigned_to INT NULL");
+    }
+    $assignedToCheck->free();
+}
+
 $allowedLocationIds = [];
 
 // Fetch allowed locations from DB
@@ -46,8 +55,8 @@ if ($status !== '') {
 
 if ($assigned_to !== '') {
     $conditions[] = 'assigned_to = ?';
-    $params[] = $assigned_to;
-    $types .= 's';
+    $params[] = (int)$assigned_to;
+    $types .= 'i';
 }
 
 $sql = 'SELECT e.*, c.name AS category, l.name AS location, ro.name AS return_location, e.category AS category_id, e.location AS location_id, e.return_location AS return_location_id FROM equipment e LEFT JOIN categories c ON e.category = c.id LEFT JOIN locations l ON e.location = l.id LEFT JOIN locations ro ON e.return_location = ro.id';

@@ -114,7 +114,9 @@ include __DIR__ . '/includes/head.php';
                                                 <th>Status</th>
                                                 <th>Location</th>
                                                 <th class="text-center">Image</th>
+                                                <?php if ($user['role'] === 'Admin'): ?>
                                                 <th class="text-center">QR Code</th>
+                                                <?php endif; ?>
                                                 <th class="text-center pe-4">Actions</th>
                                             </tr>
                                         </thead>
@@ -138,6 +140,8 @@ include __DIR__ . '/includes/head.php';
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         $(document).ready(function() {
+            var currentRole = '<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>';
+            var isAdmin = currentRole === 'Admin';
             function showAlert(message, type) {
                 var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
                     message +
@@ -155,8 +159,9 @@ include __DIR__ . '/includes/head.php';
                 $tbody.empty();
 
                 if (!Array.isArray(data) || data.length === 0) {
+                    var colspan = isAdmin ? 8 : 7;
                     var emptyRow = '<tr>' +
-                        '<td colspan="8" class="text-center py-5 text-muted">' +
+                        '<td colspan="' + colspan + '" class="text-center py-5 text-muted">' +
                         '<i class="bi bi-inbox fs-1 mb-3 text-muted"></i><br>No equipment found</td>' +
                         '</tr>';
                     $tbody.append(emptyRow);
@@ -168,9 +173,10 @@ include __DIR__ . '/includes/head.php';
 
                 data.forEach(function(item) {
                     var qrContainerId = 'qrcode-' + item.id;
-                    var printButton = item.id !== undefined ?
-                        '<a href="print_qr.php?id=' + encodeURIComponent(item.id) + '" target="_blank" class="btn btn-sm btn-outline-primary me-2"><i class="bi bi-printer"></i></a>' :
-                        '';
+                    var printButton = '';
+                    if (isAdmin && item.id !== undefined) {
+                        printButton = '<a href="print_qr.php?id=' + encodeURIComponent(item.id) + '" target="_blank" class="btn btn-sm btn-outline-primary me-2"><i class="bi bi-printer"></i></a>';
+                    }
                     var detailsButton = item.id !== undefined ?
                         '<a href="equipment_detail.php?id=' + encodeURIComponent(item.id) + '" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>' :
                         '';
@@ -196,6 +202,11 @@ include __DIR__ . '/includes/head.php';
                             statusBadge = '<span class="badge bg-secondary">' + (item.status || 'Unknown') + '</span>';
                     }
 
+                    var qrCodeCell = '';
+                    if (isAdmin) {
+                        qrCodeCell = '<td class="text-center"><div id="' + qrContainerId + '" class="mx-auto" style="width: 60px; height: 60px;"></div></td>';
+                    }
+
                     var row = '<tr>' +
                         '<td class="ps-4 fw-semibold">' + (item.id !== undefined ? item.id : '') + '</td>' +
                         '<td class="fw-semibold">' + (item.name !== undefined ? item.name : '') + '</td>' +
@@ -203,12 +214,12 @@ include __DIR__ . '/includes/head.php';
                         '<td>' + statusBadge + '</td>' +
                         '<td><i class="bi bi-geo-alt text-muted me-1"></i>' + (item.location !== undefined ? item.location : '') + '</td>' +
                         '<td class="text-center">' + imageHtml + '</td>' +
-                        '<td class="text-center"><div id="' + qrContainerId + '" class="mx-auto" style="width: 60px; height: 60px;"></div></td>' +
+                        qrCodeCell +
                         '<td class="text-center pe-4">' + printButton + detailsButton + '</td>' +
                         '</tr>';
                     $tbody.append(row);
 
-                    if (item.id !== undefined) {
+                    if (isAdmin && item.id !== undefined) {
                         new QRCode(document.getElementById(qrContainerId), {
                             text: 'equipment_id=' + item.id,
                             width: 60,

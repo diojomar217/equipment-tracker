@@ -123,13 +123,16 @@ include __DIR__ . '/includes/head.php';
                                 <div id="scanner-message" class="mt-3 text-center text-muted small">
                                     <i class="bi bi-camera me-1"></i>Initializing camera...
                                 </div>
-                                <button id="switch-camera-btn" class="btn btn-outline-secondary w-100 d-none mt-2" type="button">Switch Camera</button>
-                                <div class="mt-3">
-                                    <label for="manual-id-input" class="form-label small text-muted">Or enter Equipment ID manually:</label>
+                                <button id="scan-another-btn" class="btn btn-outline-primary w-100 d-none mt-2" type="button">Scan Another Equipment</button>
+                                <div id="scanner-controls">
+                                    <button id="switch-camera-btn" class="btn btn-outline-secondary w-100 d-none mt-2" type="button">Switch Camera</button>
+                                    <div class="mt-3" id="manual-scan-group">
+                                        <label for="manual-id-input" class="form-label small text-muted">Or enter Equipment ID manually:</label>
                                     <div class="input-group input-group-lg">
                                         <input type="number" class="form-control" id="manual-id-input" placeholder="e.g., 123" min="1">
                                         <button class="btn btn-outline-secondary" type="button" id="manual-load-btn">Load</button>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </div>
@@ -245,6 +248,8 @@ include __DIR__ . '/includes/head.php';
         var html5QrcodeScanner = null;
         var availableCameras = [];
         var currentCameraIndex = 0;
+        var isScannerHiddenOnMobile = false;
+        var isScannerStarted = false;
 
         function showAlert(message, type) {
             $('#action-alert').html('<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
@@ -264,6 +269,22 @@ include __DIR__ . '/includes/head.php';
             $('#equipment-status-badge').text('');
             $('#action-alert').empty();
             $('#action-user-display').text('');
+            $('#scan-another-btn').addClass('d-none');
+            if (isScannerHiddenOnMobile) {
+                $('#qr-reader').removeClass('d-none');
+                isScannerHiddenOnMobile = false;
+            }
+            $('#scanner-message').text('Scan a QR code to load equipment details.');
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner && isScannerStarted) {
+                html5QrcodeScanner.stop().then(function() {
+                    isScannerStarted = false;
+                }).catch(function(err) {
+                    console.warn('Failed to stop scanner:', err);
+                });
+            }
         }
 
         function renderEquipmentInfo(data) {
@@ -285,6 +306,14 @@ include __DIR__ . '/includes/head.php';
             $('#action-user-display').text(currentUser);
             // $('#current-user-group').removeClass('d-none');
             $('#return-location-select').val(data.location_id || '');
+            $('#scan-another-btn').removeClass('d-none');
+            if (window.innerWidth < 768) {
+                $('#qr-reader').addClass('d-none');
+                $('#scanner-controls').addClass('d-none');
+                isScannerHiddenOnMobile = true;
+                stopScanner();
+                $('#scanner-message').text('Equipment loaded. Scroll down to see details or tap Scan Another Equipment.');
+            }
             updateActionButtons(data);
         }
 
@@ -506,22 +535,21 @@ include __DIR__ . '/includes/head.php';
                     onScanSuccess,
                     onScanError
                 ).then(function() {
+                    isScannerStarted = true;
                     $('#scanner-message').text('Camera started. Scan the QR code.');
                 }).catch(function(err) {
                     $('#scanner-message').text('Unable to start camera: ' + err);
+                    console.error(err);
                 });
             }
 
             function switchCamera() {
-                if (availableCameras.length < 2 || !html5QrcodeScanner) {
+                if (!availableCameras.length) {
                     return;
                 }
-                html5QrcodeScanner.stop().then(function() {
-                    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-                    startCamera(currentCameraIndex);
-                }).catch(function(err) {
-                    $('#scanner-message').text('Unable to switch camera: ' + err);
-                });
+                currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                stopScanner();
+                startCamera(currentCameraIndex);
             }
 
             Html5Qrcode.getCameras().then(function(cameras) {
@@ -529,7 +557,7 @@ include __DIR__ . '/includes/head.php';
                     availableCameras = cameras;
                     currentCameraIndex = getBackCameraIndex(cameras);
                     startCamera(currentCameraIndex);
-                    if (cameras.length > 1) {
+                    if (cameras.length > 1 && window.innerWidth < 768) {
                         $('#switch-camera-btn').removeClass('d-none');
                     }
                 } else {
@@ -541,6 +569,16 @@ include __DIR__ . '/includes/head.php';
             });
 
             $('#switch-camera-btn').click(switchCamera);
+
+            $('#scan-another-btn').click(function() {
+                resetEquipmentInfo();
+                if (!isScannerStarted && availableCameras.length) {
+                    $('#scanner-controls').removeClass('d-none');
+                    $('#scan-another-btn').addClass('d-none');
+                    $('#qr-reader').removeClass('d-none');
+                    startCamera(currentCameraIndex);
+                }
+            });
 
             $('#btn-checkin').click(function() {
                 updateEquipmentStatus('RETURN');
