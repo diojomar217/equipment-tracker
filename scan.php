@@ -238,6 +238,7 @@ include __DIR__ . '/includes/head.php';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script>
         var currentEquipmentId = null;
+        var currentUserId = <?php echo (int)($user['id'] ?? 0); ?>;
         var currentUser = '<?php echo htmlspecialchars($user['name'] ?: $user['username'], ENT_QUOTES); ?>';
         var currentRole = '<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>';
 
@@ -337,7 +338,7 @@ include __DIR__ . '/includes/head.php';
 
             var confirmMessage = '';
             if (status === 'BORROW') {
-                confirmMessage = 'Borrow this equipment and assign a return location?';
+                confirmMessage = 'Borrow this equipment and assign a destination location?';
             } else if (status === 'RETURN') {
                 confirmMessage = 'Return this equipment and make it available again?';
             } else if (status === 'MAINTENANCE') {
@@ -371,21 +372,13 @@ include __DIR__ . '/includes/head.php';
 
             proceedWithStatusUpdate();
         }
-                if (response && response.success) {
-                    showAlert(response.message || 'Status updated.', 'success');
-                    fetchEquipmentById(currentEquipmentId);
-                } else {
-                    showAlert(response.error || 'Unable to update status.', 'danger');
-                }
-            }).fail(function() {
-                showAlert('Unable to update status.', 'danger');
-            });
-        }
+        
+             
 
         function updateActionButtons(data) {
             var status = data.status;
-            var assignedTo = data.assigned_to || '';
-            var isOwner = assignedTo === currentUser;
+            var assignedTo = data.assigned_to;
+            var isOwner = assignedTo == currentUserId;
             var isAdmin = currentRole === 'Admin';
 
             $('#btn-checkin').hide();
@@ -402,7 +395,7 @@ include __DIR__ . '/includes/head.php';
                 if (isAdmin) {
                     $('#btn-maintenance').show();
                 }
-                $('#action-message').text('This equipment is available. Select a return location, then borrow it, or send it to maintenance.');
+                $('#action-message').text('This equipment is available. Select where you will return it, then borrow it.');
             } else if (status === 'BORROWED') {
                 $('#return-location-group').addClass('d-none');
                 if (isOwner) {
@@ -411,9 +404,9 @@ include __DIR__ . '/includes/head.php';
                         $('#btn-maintenance').show();
                     }
                     if (data.return_location) {
-                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.return_location + '.');
+                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.return_location + ' before clicking the return equipment button.');
                     } else if (data.location) {
-                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.location + '.');
+                        $('#action-message').text('You currently have this equipment borrowed. Return it to ' + data.location + ' before clicking the return equipment button.');
                     } else {
                         $('#action-message').text('You currently have this equipment borrowed.');
                     }

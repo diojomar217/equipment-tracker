@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $id = isset($_POST['id']) ? trim($_POST['id']) : '';
 $action = isset($_POST['status']) ? trim($_POST['status']) : '';
 $returnLocation = isset($_POST['return_location']) ? trim($_POST['return_location']) : '';
+$currentUserId = auth_user()['id'] ?? '';
 $currentUser = auth_user()['username'] ?? '';
 
 $allowedActions = ['BORROW', 'RETURN', 'MAINTENANCE', 'COMPLETE_MAINTENANCE'];
@@ -82,11 +83,11 @@ if (!$currentData) {
 }
 
 $currentStatus = $currentData['status'];
-$currentAssignedTo = $currentData['assigned_to'];
+$currentAssignedTo = (int)($currentData['assigned_to'] ?? 0);
 $assignedTo = null;
 $newStatus = '';
-$newLocation = $currentData['location'];
-$newReturnLocation = $currentData['return_location'];
+$newLocation = (int)($currentData['location'] ?? 0);
+$newReturnLocation = (int)($currentData['return_location'] ?? 0);
 
 if ($action === 'BORROW') {
     if ($currentStatus !== 'AVAILABLE') {
@@ -100,19 +101,19 @@ if ($action === 'BORROW') {
         exit;
     }
     $newStatus = 'BORROWED';
-    $assignedTo = $currentUser;
-    $newReturnLocation = $returnLocation;
-    $newLocation = $currentData['location'];
+    $assignedTo = $currentUserId;
+    $newLocation = (int)$returnLocation;
+    $newReturnLocation = $currentData['return_location'];
 } elseif ($action === 'RETURN') {
-    if ($currentStatus !== 'BORROWED' || $currentAssignedTo !== $currentUser) {
+    if ($currentStatus !== 'BORROWED' || $currentAssignedTo != $currentUserId) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Only the user who borrowed the equipment can return it.']);
         exit;
     }
     $newStatus = 'AVAILABLE';
     $assignedTo = null;
-    $newLocation = $currentData['return_location'] ?: $currentData['location'];
-    $newReturnLocation = null;
+    $newLocation = $newReturnLocation;
+    // Keep return_location unchanged (set by admin)
 } elseif ($action === 'MAINTENANCE') {
     if ($currentStatus === 'MAINTENANCE') {
         http_response_code(400);
@@ -121,7 +122,8 @@ if ($action === 'BORROW') {
     }
     $newStatus = 'MAINTENANCE';
     $assignedTo = null;
-    $newReturnLocation = null;
+    $newLocation = $currentData['location'];
+    // Keep return_location unchanged (set by admin)
 } elseif ($action === 'COMPLETE_MAINTENANCE') {
     if ($currentStatus !== 'MAINTENANCE') {
         http_response_code(400);
@@ -130,7 +132,8 @@ if ($action === 'BORROW') {
     }
     $newStatus = 'AVAILABLE';
     $assignedTo = null;
-    $newReturnLocation = null;
+    $newLocation = $currentData['location'];
+    // Keep return_location unchanged (set by admin)
 }
 
 if ($assignedTo === null) {
@@ -150,7 +153,7 @@ if ($assignedTo === null) {
         echo json_encode(['success' => false, 'error' => 'Failed to prepare update statement: ' . $connection->error]);
         exit;
     }
-    $stmt->bind_param('ssisii', $newStatus, $assignedTo, $newLocation, $newReturnLocation, $id);
+    $stmt->bind_param('siiii', $newStatus, $assignedTo, $newLocation, $newReturnLocation, $id);
 }
 
 if (!$stmt->execute()) {

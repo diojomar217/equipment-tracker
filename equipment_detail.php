@@ -495,6 +495,11 @@ include __DIR__ . '/includes/head.php';
         </div>
     </div>
     <script>
+        var currentUserId = <?php echo (int)($user['id'] ?? 0); ?>;
+        var currentRole = '<?php echo htmlspecialchars($user['role'], ENT_QUOTES); ?>';
+        var equipmentStatus = '<?php echo htmlspecialchars($equipment['status'], ENT_QUOTES); ?>';
+        var equipmentAssignedTo = <?php echo (int)($equipment['assigned_to'] ?? 0); ?>;
+        
         function showAlert(message, type) {
             // Create a temporary alert container if it doesn't exist
             if (!$('#action-alert').length) {
@@ -616,6 +621,42 @@ include __DIR__ . '/includes/head.php';
                 }
                 equipmentDetailConfirmModal.hide();
             });
+
+            // Control button visibility based on status and ownership
+            var returnBtn = $('button[onclick="updateStatus(\'RETURN\')"]');
+            var borrowBtn = $('button[onclick="updateStatus(\'BORROW\')"]');
+            var maintenanceBtn = $('button[onclick="updateStatus(\'MAINTENANCE\')"]');
+            var completeMaintBtn = $('button[onclick="updateStatus(\'COMPLETE_MAINTENANCE\')"]');
+
+            var isOwner = equipmentAssignedTo === currentUserId;
+            var isAdmin = currentRole === 'Admin';
+
+            // Hide all buttons by default
+            returnBtn.hide();
+            borrowBtn.hide();
+            maintenanceBtn.hide();
+            completeMaintBtn.hide();
+
+            // Show appropriate buttons based on status
+            if (equipmentStatus === 'AVAILABLE') {
+                borrowBtn.show();
+                if (isAdmin) {
+                    maintenanceBtn.show();
+                }
+            } else if (equipmentStatus === 'BORROWED') {
+                if (isOwner) {
+                    returnBtn.show();
+                    if (isAdmin) {
+                        maintenanceBtn.show();
+                    }
+                } else if (isAdmin) {
+                    maintenanceBtn.show();
+                }
+            } else if (equipmentStatus === 'MAINTENANCE') {
+                if (isAdmin) {
+                    completeMaintBtn.show();
+                }
+            }
 
             $.ajax({
                 url: 'api/get_locations.php',
