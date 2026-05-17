@@ -1,8 +1,5 @@
 <?php
-$host = 'localhost';
-$username = 'root';
-$password = 'admin';
-$database = 'equipment_tracker';
+require_once __DIR__ . '/db_config.php';
 
 $dsn = "mysql:host=$host;dbname=$database;charset=utf8mb4";
 $options = [

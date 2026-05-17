@@ -21,7 +21,6 @@ $connection->close();
 <html lang="en">
 <?php
 $pageTitle = 'Location Management - Equipment Tracker';
-$pageStyles = '';
 include __DIR__ . '/includes/head.php';
 ?>
 <body>

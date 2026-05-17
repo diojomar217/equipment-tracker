@@ -55,10 +55,9 @@ $qrText = $equipment['qr_code'] ?: 'equipment_id=' . $equipment['id'];
 <html lang="en">
 <?php
 $pageTitle = 'Print QR - ' . htmlspecialchars($equipment['name']);
-$pageStyles = '<style>body { background: #fff; color: #212529; } .print-container { max-width: 700px; margin: 0 auto; padding: 20px; } .qr-box { width: 220px; height: 220px; margin: 0 auto 20px; } .print-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; } @media print { .print-btn { display: none; } body { margin: 0; } }</style>';
 include __DIR__ . '/includes/head.php';
 ?>
-<body>
+<body class="print-qr-page">
     <button class="btn btn-primary print-btn" onclick="window.print();">Print QR</button>
     <div class="print-container text-center">
         <div class="mb-4">

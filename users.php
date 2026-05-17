@@ -18,7 +18,6 @@ $connection->close();
 <html lang="en">
 <?php
 $pageTitle = 'User Management - Equipment Tracker';
-$pageStyles = '';
 include __DIR__ . '/includes/head.php';
 ?>
 <body>

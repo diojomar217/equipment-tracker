@@ -21,7 +21,6 @@ $connection->close();
 <html lang="en">
 <?php
 $pageTitle = 'Category Management - Equipment Tracker';
-$pageStyles = '';
 include __DIR__ . '/includes/head.php';
 ?>
 <body>

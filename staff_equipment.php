@@ -7,34 +7,6 @@ $user = auth_user();
 <html lang="en">
 <?php
 $pageTitle = 'Equipment Inventory';
-$pageStyles = '<style>
-/* Equipment specific styles */
-.equipment-table th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.equipment-image-thumb {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.equipment-image-thumb:hover {
-    transform: scale(1.05);
-}
-
-.filter-section {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-}
-</style>';
 include __DIR__ . '/includes/head.php';
 ?>
 <body>
@@ -44,11 +16,13 @@ include __DIR__ . '/includes/head.php';
             $activePage = 'staff_equipment';
             include __DIR__ . '/includes/sidebar.php';
             ?>
-            <main class="col-12 col-md-9 col-lg-10 main-content py-4 px-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+            <main class="col-12 col-md-9 col-lg-10 content-area px-4">
+                <div class="d-flex justify-content-between align-items-center mb-5">
                     <div>
-                        <h1 class="h3 mb-0 fw-bold">Equipment Inventory</h1>
-                        <p class="text-muted">Browse and view equipment details</p>
+                        <h1 class="h2 fw-bold text-dark mb-2">
+                            <i class="bi bi-box-seam text-primary me-3"></i>Equipment Inventory
+                        </h1>
+                        <p class="text-muted mb-0 fs-6">Browse and view equipment details</p>
                     </div>
                     <div class="d-flex align-items-center">
                         <span class="badge bg-primary fs-6 px-3 py-2 me-3" id="equipment-count">0</span>

@@ -32,7 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <?php
 $pageTitle = 'Login - Equipment Tracker';
-$pageStyles = '';
 include __DIR__ . '/includes/head.php';
 ?>
 

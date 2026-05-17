@@ -1,9 +1,14 @@
 <?php
 // Database connection settings
-$host = 'localhost';
-$username = 'root';
-$password = 'admin';
-$database = 'equipment_tracker';
+
+// Local and shared credential values
+require_once __DIR__ . '/db_config.php';
+
+// PROD
+// $host = 'sql207.infinityfree.com';
+// $username = 'if0_41849753';
+// $password = '8JlOC2m9Zt8';
+// $database = 'if0_41849753_equipment_tracker';
 
 // Create connection
 $connection = new mysqli($host, $username, $password, $database);
